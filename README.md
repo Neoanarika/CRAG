@@ -11,6 +11,10 @@ export OPENAI_API_KEY=<YOU_API_KEY>
 
 ## 📊 Dataset 
 
+```
+wget -O crag_task_1_and_2_dev_sample30_v4.jsonl.bz2 'https://www.dropbox.com/scl/fi/1q8c0zudgbf7k45ksw7x0/crag_task_1_and_2_dev_sample30_v4.jsonl.bz2?rlkey=pmi0b653xdqg0t4u3ua4ui276&e=1&st=i1d8ww2b&dl=1'
+```
+
 ## ⚙️ Model
 
 Create the right folder structure
