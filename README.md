@@ -2,7 +2,7 @@
 
 This is a proof of concept. To make this alot more robust and interesting, alot more compute budget and resources would be required to bring this project into fruition. 
 
-## Setup
+## 🚀 Setup
 
 Set env variables 
 ```
