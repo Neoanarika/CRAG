@@ -75,19 +75,6 @@ Please refer to [local_evaluation.py](local_evaluation.py) for more details on h
 ## 🏁 Baselines
 We include three baselines for demonstration purposes, and you can read more about them in [docs/baselines.md](docs/baselines.md).
 
-
-## Citations
-
-```
-@article{yang2024crag,
-      title={CRAG -- Comprehensive RAG Benchmark}, 
-      author={Xiao Yang and Kai Sun and Hao Xin and Yushi Sun and Nikita Bhalla and Xiangsen Chen and Sajal Choudhary and Rongze Daniel Gui and Ziran Will Jiang and Ziyu Jiang and Lingkun Kong and Brian Moran and Jiaqi Wang and Yifan Ethan Xu and An Yan and Chenyu Yang and Eting Yuan and Hanwen Zha and Nan Tang and Lei Chen and Nicolas Scheffer and Yue Liu and Nirav Shah and Rakesh Wanga and Anuj Kumar and Wen-tau Yih and Xin Luna Dong},
-      year={2024},
-      journal={arXiv preprint arXiv:2406.04744},
-      url={https://arxiv.org/abs/2406.04744}
-}
-```
-
 ## License
 
 This project is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)](LICENSE). This license permits sharing and adapting the work, provided it's not used for commercial purposes and appropriate credit is given. For a quick overview, visit [Creative Commons License](https://creativecommons.org/licenses/by-nc/4.0/).
