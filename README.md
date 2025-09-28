@@ -19,6 +19,10 @@ Download the models
 huggingface-cli download meta-llama/Meta-Llama-3-8B-Instruct   --local-dir .   --local-dir-use-symlinks False   --include "config.json"            "generation_config.json"            "tokenizer.json"            "tokenizer.model"            "tokenizer_config.json"            "*.safetensors"
 ```
 
+```
+huggingface-cli download sentence-transformers/all-MiniLM-L6-v2 --local-dir models/sentence-transformers/all-MiniLM-L6-v2
+```
+
 ## 📏 Evaluation Metrics
 RAG systems are evaluated using a scoring method that measures response quality to questions in the evaluation set. Responses are rated as perfect, acceptable, missing, or incorrect:
 
