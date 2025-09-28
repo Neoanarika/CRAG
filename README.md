@@ -4,10 +4,13 @@ The Comprehensive RAG Benchmark (CRAG) is a rich and comprehensive factual quest
 
 This repository is migrated from [meta-comprehensive-rag-benchmark-kdd-cup-2024](https://gitlab.aicrowd.com/aicrowd/challenges/meta-comprehensive-rag-benchmark-kdd-cup-2024).
 
-## 📊 Dataset and Mock APIs
+## 📊 Dataset 
 
-Please find more details about the CRAG dataset (download, schema, etc.) in [docs/dataset.md](docs/dataset.md) and mock APIs in [mock_api](mock_api).
+## Model
 
+```
+huggingface-cli download meta-llama/Meta-Llama-3-8B-Instruct   --local-dir .   --local-dir-use-symlinks False   --include "config.json"            "generation_config.json"            "tokenizer.json"            "tokenizer.model"            "tokenizer_config.json"            "*.safetensors"
+```
 
 ## 📏 Evaluation Metrics
 RAG systems are evaluated using a scoring method that measures response quality to questions in the evaluation set. Responses are rated as perfect, acceptable, missing, or incorrect:
