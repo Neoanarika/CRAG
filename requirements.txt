@@ -4,6 +4,7 @@ bitsandbytes
 blingfire
 hf-transfer
 huggingface-hub
+huggingface_hub[cli]
 loguru
 lxml
 openai==1.109.1
