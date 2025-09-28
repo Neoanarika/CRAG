@@ -1,12 +1,10 @@
-# CRAG: Comprehensive RAG Benchmark
+# CRAG RAG item response model
 
-The Comprehensive RAG Benchmark (CRAG) is a rich and comprehensive factual question answering benchmark designed to advance research in RAG. Besides question-answer pairs, CRAG provides mock APIs to simulate web and knowledge graph search. CRAG is designed to encapsulate a diverse array of questions across five domains and eight question categories, reflecting varied entity popularity from popular to long-tail, and temporal dynamisms ranging from years to seconds.
-
-This repository is migrated from [meta-comprehensive-rag-benchmark-kdd-cup-2024](https://gitlab.aicrowd.com/aicrowd/challenges/meta-comprehensive-rag-benchmark-kdd-cup-2024).
+This is a proof of concept. To make this alot more robust and interesting, alot more compute budget and resources would be required to bring this project into fruition. 
 
 ## 📊 Dataset 
 
-## Model
+## ⚙️ Model
 
 ```
 huggingface-cli download meta-llama/Meta-Llama-3-8B-Instruct   --local-dir .   --local-dir-use-symlinks False   --include "config.json"            "generation_config.json"            "tokenizer.json"            "tokenizer.model"            "tokenizer_config.json"            "*.safetensors"
