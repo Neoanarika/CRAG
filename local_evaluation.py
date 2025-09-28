@@ -287,7 +287,6 @@ if __name__ == "__main__":
     participant_model = UserModel()
     queries, ground_truths, predictions = generate_predictions(DATASET_PATH, participant_model)
     # Evaluate Predictions
-    openai_client = OpenAI()
     evaluation_results = evaluate_predictions(
-        queries, ground_truths, predictions, EVALUATION_MODEL_NAME, openai_client
+        queries, ground_truths, predictions, EVALUATION_MODEL_NAME
     )
