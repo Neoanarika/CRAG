@@ -6,7 +6,7 @@ hf-transfer
 huggingface-hub
 loguru
 lxml
-openai==1.13.3
+openai==1.109.1
 sentence_transformers
 torch
 transformers
