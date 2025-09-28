@@ -6,6 +6,15 @@ This is a proof of concept. To make this alot more robust and interesting, alot 
 
 ## ⚙️ Model
 
+Create the right folder structure
+```
+cd models
+mkdir meta-llama
+cd meta-llama
+mkdir Meta-Llama-3-8B-Instruct
+```
+
+Download the models
 ```
 huggingface-cli download meta-llama/Meta-Llama-3-8B-Instruct   --local-dir .   --local-dir-use-symlinks False   --include "config.json"            "generation_config.json"            "tokenizer.json"            "tokenizer.model"            "tokenizer_config.json"            "*.safetensors"
 ```
