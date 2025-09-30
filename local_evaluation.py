@@ -9,7 +9,8 @@ import json
 import os
 import re
 from datetime import datetime
-
+import itertools
+from chonkie import SemanticChunker
 from loguru import logger
 from openai import APIConnectionError, OpenAI, RateLimitError
 from prompts.templates import IN_CONTEXT_EXAMPLES, INSTRUCTIONS
@@ -195,7 +196,7 @@ def evaluate_predictions(queries, ground_truths_list, predictions, evaluation_mo
     Returns:
     dict: A dictionary containing evaluation results.
     """
-
+    out = []
     if "gpt" in evaluation_model_name.lower():
         # now we are using chatgpt
         openai_client = OpenAI()
@@ -214,6 +215,7 @@ def evaluate_predictions(queries, ground_truths_list, predictions, evaluation_mo
 
             if "i don't know" in prediction_lowercase:
                 n_miss += 1
+                out.append(-1)
                 continue
 
             accuracy = -1
@@ -231,9 +233,11 @@ def evaluate_predictions(queries, ground_truths_list, predictions, evaluation_mo
                 if prediction_lowercase == ground_truth_lowercase:
                     # exact correct
                     accuracy = 1
+                    out.append(1)
                     break
                 elif "invalid" in prediction_lowercase and "invalid" in ground_truth_lowercase:
                     accuracy = 1
+                    out.append(1)
                     break
                 elif "invalid" in prediction_lowercase and "invalid" not in ground_truth_lowercase:
                     # hallucination
@@ -252,9 +256,12 @@ def evaluate_predictions(queries, ground_truths_list, predictions, evaluation_mo
                         if accuracy == 1:
                             # no need to check other ground truth(s)
                             break
+            else:
+                out.append(0)
 
             if accuracy == 1:
                 n_correct += 1
+                out.append(1)
 
         n = len(predictions)
         results = {
@@ -268,7 +275,7 @@ def evaluate_predictions(queries, ground_truths_list, predictions, evaluation_mo
             "total": n,
         }
         logger.info(results)
-        return results
+        return results, out
     elif "llama" in evaluation_model_name.lower():
         # now we are using llama model to evaluate
         # to be filled by Jiaqi
@@ -278,15 +285,22 @@ def evaluate_predictions(queries, ground_truths_list, predictions, evaluation_mo
 
 
 if __name__ == "__main__":
-    from models.user_config import UserModel
 
-    DATASET_PATH = "example_data/dev_data.jsonl.bz2"
+    DATASET_PATH = "data/crag_task_1_and_2_dev_sample30_v4.jsonl.bz2"
     EVALUATION_MODEL_NAME = os.getenv("EVALUATION_MODEL_NAME", "gpt-4-0125-preview")
-
-    # Generate predictions
-    participant_model = UserModel()
+    
+    from models.user_config import UserModel
+    participant_model = UserModel(embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                threshold=0.7,
+                chunk_size=512,
+                similarity_window=3,
+                skip_window=0,
+                min_sentences_per_chunk=1)
     queries, ground_truths, predictions = generate_predictions(DATASET_PATH, participant_model)
-    # Evaluate Predictions
-    evaluation_results = evaluate_predictions(
-        queries, ground_truths, predictions, EVALUATION_MODEL_NAME
-    )
+        
+        # Evaluate Prediction
+    print("evaluate again")
+    evaluation_results, out = evaluate_predictions(
+            queries, ground_truths, predictions, EVALUATION_MODEL_NAME
+        )
+    print(out)
