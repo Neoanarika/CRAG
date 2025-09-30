@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import torch
 import pickle
@@ -9,6 +8,9 @@ from torch.optim import LBFGS
 from tqdm import tqdm
 from scipy.stats import pearsonr
 from collections import defaultdict
+
+from tueplots import bundles
+bundles.icml2024()
 
 from torchmetrics import AUROC
 auroc = AUROC(task="binary")
@@ -109,7 +111,7 @@ if __name__ == "__main__":
     print("Number of test takers:", results.shape[0])
     print("Number of items:", results.shape[1])
     print("Number of scenarios:", results.columns.get_level_values("scenario").nunique())
-    
+
     # count the number of items and test takers in each dataset
     scenario_counts = {}
     for scenario in sorted(scenarios):
