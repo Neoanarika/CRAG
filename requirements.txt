@@ -14,3 +14,4 @@ transformers
 vllm==0.4.2
 auto-gptq==0.7.1
 setuptools==80.9.0
+torchmetrics
