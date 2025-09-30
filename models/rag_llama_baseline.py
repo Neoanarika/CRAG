@@ -7,7 +7,7 @@
 import os
 from collections import defaultdict
 from typing import Any, Dict, List
-
+from chonkie import SemanticChunker
 import numpy as np
 import ray
 import torch
@@ -49,7 +49,7 @@ SUBMISSION_BATCH_SIZE = 8 # TUNE THIS VARIABLE depending on the number of GPUs y
 
 # VLLM Parameters 
 VLLM_TENSOR_PARALLEL_SIZE = 1 # TUNE THIS VARIABLE depending on the number of GPUs you are requesting and the size of your model.
-VLLM_GPU_MEMORY_UTILIZATION = 0.85 # TUNE THIS VARIABLE depending on the number of GPUs you are requesting and the size of your model.
+VLLM_GPU_MEMORY_UTILIZATION = 0.65 # TUNE THIS VARIABLE depending on the number of GPUs you are requesting and the size of your model.
 
 # Sentence Transformer Parameters
 SENTENTENCE_TRANSFORMER_BATCH_SIZE = 128 # TUNE THIS VARIABLE depending on the size of your embedding model and GPU mem available
@@ -58,21 +58,30 @@ SENTENTENCE_TRANSFORMER_BATCH_SIZE = 128 # TUNE THIS VARIABLE depending on the s
 
 class ChunkExtractor:
 
+    def __init__(self, embedding_model,
+                threshold,
+                chunk_size,
+                similarity_window,
+                skip_window,
+                min_sentences_per_chunk):
+        self.embedding_model=embedding_model
+        self.threshold= threshold
+        self.chunk_size=chunk_size
+        self.similarity_window=similarity_window
+        self.skip_window=skip_window
+        self.min_sentences_per_chunk=min_sentences_per_chunk
+
     @ray.remote
     def _extract_chunks(self, interaction_id, html_source):
         """
-        Extracts and returns chunks from given HTML source.
-
-        Note: This function is for demonstration purposes only.
-        We are treating an independent sentence as a chunk here,
-        but you could choose to chunk your text more cleverly than this.
+        Extracts and returns semantic chunks from given HTML source using chonkie.
 
         Parameters:
             interaction_id (str): Interaction ID that this HTML source belongs to.
             html_source (str): HTML content from which to extract text.
 
         Returns:
-            Tuple[str, List[str]]: A tuple containing the interaction ID and a list of sentences extracted from the HTML content.
+            Tuple[str, List[str]]: A tuple containing the interaction ID and a list of semantic chunks extracted from the HTML content.
         """
         # Parse the HTML content using BeautifulSoup
         soup = BeautifulSoup(html_source, "lxml")
@@ -82,17 +91,18 @@ class ChunkExtractor:
             # Return a list with empty string when no text is extracted
             return interaction_id, [""]
 
-        # Extract offsets of sentences from the text
-        _, offsets = text_to_sentences_and_offsets(text)
+        # Get semantic chunks (as list of strings)
+        chunker = SemanticChunker(
+                embedding_model=self.embedding_model,  # Default model
+                threshold=self.threshold,                               # Similarity threshold (0-1)
+                chunk_size=self.chunk_size,                             # Maximum tokens per chunk
+                similarity_window=self.similarity_window,                         # Window for similarity calculation
+                skip_window=self.skip_window                                # Skip-and-merge window (0=disabled)
+        )
+        chunks = chunker.chunk(text)
 
-        # Initialize a list to store sentences
-        chunks = []
-
-        # Iterate through the list of offsets and extract sentences
-        for start, end in offsets:
-            # Extract the sentence and limit its length
-            sentence = text[start:end][:MAX_CONTEXT_SENTENCE_LENGTH]
-            chunks.append(sentence)
+        # Optionally, limit each chunk's length
+        chunks = [chunk[:MAX_CONTEXT_SENTENCE_LENGTH] for chunk in chunks]
 
         return interaction_id, chunks
 
@@ -160,9 +170,19 @@ class RAGModel:
     """
     An example RAGModel
     """
-    def __init__(self):
+    def __init__(self, embedding_model,
+                threshold,
+                chunk_size,
+                similarity_window,
+                skip_window,
+                min_sentences_per_chunk):
         self.initialize_models()
-        self.chunk_extractor = ChunkExtractor()
+        self.chunk_extractor = ChunkExtractor(embedding_model,
+                threshold,
+                chunk_size,
+                similarity_window,
+                skip_window,
+                min_sentences_per_chunk)
 
     def initialize_models(self):
         # Initialize Meta Llama 3 - 8B Instruct Model
@@ -191,9 +211,7 @@ class RAGModel:
         # Load a sentence transformer model optimized for sentence embeddings, using CUDA if available.
         self.sentence_model = SentenceTransformer(
             "models/sentence-transformers/all-MiniLM-L6-v2",
-            device=torch.device(
-                "cuda" if torch.cuda.is_available() else "cpu"
-            ),
+            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         )
 
     def calculate_embeddings(self, sentences):
