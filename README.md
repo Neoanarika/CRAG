@@ -19,7 +19,7 @@ conda activate cat
 Go to ```data``` directory then 
 
 ```
-wget -O crag_task_1_and_2_dev_sample30_v4.jsonl.bz2 'https://www.dropbox.com/scl/fi/1q8c0zudgbf7k45ksw7x0/crag_task_1_and_2_dev_sample30_v4.jsonl.bz2?rlkey=pmi0b653xdqg0t4u3ua4ui276&e=1&st=i1d8ww2b&dl=1'
+wget -O crag_task_1_and_2_dev_sample30_v4.jsonl.bz2 'https://www.dropbox.com/scl/fi/lv1b8sgkyoefc9w1pgzc7/crag_task_1_and_2_dev_top30.jsonl.bz2?rlkey=3w3w913mo0fltqpxx2rvxe6h0&st=sz4uk9l7&dl=1'
 ```
 
 ## ⚙️ Model
