@@ -22,14 +22,6 @@ wget -O crag_task_1_and_2_dev_sample30_v4.jsonl.bz2 'https://www.dropbox.com/scl
 
 ## ⚙️ Model
 
-Create the right folder structure
-```
-cd models
-mkdir meta-llama
-cd meta-llama
-mkdir Meta-Llama-3-8B-Instruct
-```
-
 Download the models
 ```
 huggingface-cli download meta-llama/Meta-Llama-3-8B-Instruct   --local-dir models/meta-llama/Meta-Llama-3-8B-Instruct   --local-dir-use-symlinks False   --include "config.json"            "generation_config.json"            "tokenizer.json"            "tokenizer.model"            "tokenizer_config.json"            "*.safetensors"
