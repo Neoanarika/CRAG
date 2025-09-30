@@ -9,6 +9,11 @@ Set env variables
 export OPENAI_API_KEY=<YOU_API_KEY>
 ```
 
+To set up the R environment:
+
+conda env create -f cat.yml
+conda activate cat
+
 ## 📊 Dataset 
 
 ```
