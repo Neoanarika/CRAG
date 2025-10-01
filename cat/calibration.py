@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 import torch
 import pickle
@@ -8,9 +9,6 @@ from torch.optim import LBFGS
 from tqdm import tqdm
 from scipy.stats import pearsonr
 from collections import defaultdict
-
-from tueplots import bundles
-bundles.icml2024()
 
 from torchmetrics import AUROC
 auroc = AUROC(task="binary")
@@ -88,41 +86,25 @@ def compute_cttcorr(probs, data, train_idtor, test_idtor):
     return train_cttcorr, test_cttcorr
 
 if __name__ == "__main__":
-    with open(f"../data/resmat.pkl", "rb") as f:
-        results = pickle.load(f)
         
-    # data_withnan, missing=nan
-    # data_withneg1, missing=-1
-    # data_with0, missing=0
-    data_withnan = torch.tensor(results.values, dtype=torch.float, device=device)
-    data_withneg1 = data_withnan.nan_to_num(nan=-1.0)
+    data = pd.read_csv("/root/mlexp/reeval/calibration/test.csv")
+    data = data.iloc[:, 1:] 
+    data = data.to_numpy()
+    data_withneg1  = torch.tensor(data, dtype=torch.float, device=device)
     data_idtor = (data_withneg1 != -1).to(float)
     data_with0 = data_withneg1 * data_idtor # -1 -> 0
     n_test_takers, n_items = data_with0.shape
-    scenarios = results.columns.get_level_values("scenario").unique()
 
     # save dict
     metric_results = defaultdict(dict)
-
-    vis_resmat_dir = "../result/visualize_resmat"
-    os.makedirs(vis_resmat_dir, exist_ok=True)
-
-    # overall stats
-    print("Number of test takers:", results.shape[0])
-    print("Number of items:", results.shape[1])
-    print("Number of scenarios:", results.columns.get_level_values("scenario").nunique())
-
     
-    # data_idtor = train_idtor + test_idtor
-    # apply random train/test mask to the matrix, and ensure no one row or column is fully masked
-    valid_condition = False
-    trial = 0
-    while not valid_condition:
-        train_idtor = torch.bernoulli(data_idtor * 0.8).int()
-        test_idtor = data_idtor - train_idtor
-        valid_condition = (train_idtor.sum(axis=1) != 0).all() and (train_idtor.sum(axis=0) != 0).all()
-        print(f"trial {trial} valid condition: {valid_condition}")
-        trial += 1
+    # overall stats
+    print("Number of test takers:", data.shape[0])
+    print("Number of items:", data.shape[1])
+
+    # apply random train/test mask to the matrix
+    train_idtor = torch.bernoulli(data_idtor * 0.7).int()
+    test_idtor = data_idtor - train_idtor
 
     # fit z
     B = 50000
