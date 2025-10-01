@@ -87,7 +87,7 @@ def compute_cttcorr(probs, data, train_idtor, test_idtor):
 
 if __name__ == "__main__":
         
-    data = pd.read_csv("/root/mlexp/reeval/calibration/test.csv")
+    data = pd.read_csv("./cat/test.csv")
     data = data.iloc[:, 1:] 
     data = data.to_numpy()
     data_withneg1  = torch.tensor(data, dtype=torch.float, device=device)
