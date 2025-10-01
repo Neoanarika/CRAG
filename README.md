@@ -35,6 +35,20 @@ huggingface-cli download sentence-transformers/all-MiniLM-L6-v2 --local-dir mode
 
 ## Running Post-Hoc CAT for RAG systems (proof of concept study)
 
+1. Get calibration data
+```
+```
+
+2. Train IRT model (Rasch model)
+```
+cd cat
+python calibration.py
+```
+
+3. Perform CAT
+```
+python cat.py
+```
 ## License
 
 This project is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)](LICENSE). This license permits sharing and adapting the work, provided it's not used for commercial purposes and appropriate credit is given. For a quick overview, visit [Creative Commons License](https://creativecommons.org/licenses/by-nc/4.0/).
