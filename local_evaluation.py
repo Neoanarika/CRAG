@@ -8,8 +8,10 @@ import bz2
 import json
 import os
 import re
+import csv
 from datetime import datetime
 import itertools
+import argparse
 from chonkie import SemanticChunker
 from loguru import logger
 from openai import APIConnectionError, OpenAI, RateLimitError
@@ -288,14 +290,30 @@ if __name__ == "__main__":
 
     DATASET_PATH = "data/crag_task_1_and_2_dev_sample30_v4.jsonl.bz2"
     EVALUATION_MODEL_NAME = os.getenv("EVALUATION_MODEL_NAME", "gpt-4-0125-preview")
-    
+
+    parser = argparse.ArgumentParser(
+        description="Run single config or grid-search sweep over CRAG hyperparameters."
+    )
+
+    # Hyperparameters: allow either single values or sweep specs
+    parser.add_argument("--threshold", default=0.7,
+                        help="Float or sweep spec (e.g. '0.5:0.9:0.05' or '0.6,0.7,0.8')")
+    parser.add_argument("--chunk_size", default=512)
+    parser.add_argument("--similarity_window", default=3,
+                        help="Int or sweep spec")
+    parser.add_argument("--skip_window", default=0,
+                        help="Int or sweep spec")
+    parser.add_argument("--min_sentences_per_chunk", default=1,
+                        help="Int or sweep spec")
+    args = parser.parse_args()
     from models.user_config import UserModel
+    hyperparam = f"threshold:{args.threshold} chunk_size:{args.chunk_size} similarity_window:{args.similarity_window} skip_window:{args.skip_window} min_sentence_per_chunk:{args.min_sentences_per_chunk}"
     participant_model = UserModel(embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-                threshold=0.7,
-                chunk_size=512,
-                similarity_window=3,
-                skip_window=0,
-                min_sentences_per_chunk=1)
+                threshold=float(args.threshold),
+                chunk_size=int(args.chunk_size),
+                similarity_window=int(args.similarity_window),
+                skip_window=int(args.skip_window),
+                min_sentences_per_chunk=int(args.min_sentences_per_chunk))
     queries, ground_truths, predictions = generate_predictions(DATASET_PATH, participant_model)
         
         # Evaluate Prediction
@@ -303,4 +321,11 @@ if __name__ == "__main__":
     evaluation_results, out = evaluate_predictions(
             queries, ground_truths, predictions, EVALUATION_MODEL_NAME
         )
-    print(out)
+    # File name
+    filename = "output_list.csv"
+
+    # Append list as a new row
+    with open(filename, "a", newline="") as f:   # 'a' = append mode
+        writer = csv.writer(f)
+        data = [hyperparam] + out
+        writer.writerow(data)
