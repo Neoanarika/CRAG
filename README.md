@@ -33,7 +33,7 @@ huggingface-cli download meta-llama/Meta-Llama-3-8B-Instruct   --local-dir model
 huggingface-cli download sentence-transformers/all-MiniLM-L6-v2 --local-dir models/sentence-transformers/all-MiniLM-L6-v2
 ```
 
-## Running Post-Hoc CAT for RAG systems (proof of concept study)
+## 🎉 Running Post-Hoc CAT for RAG systems (proof of concept study)
 
 1. Get calibration data
 ```
