@@ -3,6 +3,7 @@ import torch
 import os
 import numpy as np
 import pandas as pd
+from typing import Optional, Literal
 from typing import Callable, Dict, List
 
 def sigmoid(x): 
@@ -60,6 +61,142 @@ def map_update_theta_rasch(theta0, b_sel, x_sel, mu0=0.0, sigma0=1.0, max_iter=2
     return theta, torch.tensor(se, device=theta.device)
 
 
+def _sigmoid(x): return 1.0 / (1.0 + torch.exp(-x))
+
+def item_info_rasch(theta: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """1D Rasch info for all items at theta; returns [n_items]."""
+    p = _sigmoid(theta - b)
+    return p * (1 - p)
+
+def item_info_2pl(theta: torch.Tensor, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """1D 2PL info for all items: a^2 * p(1-p)."""
+    p = _sigmoid(a * (theta - b))
+    return (a**2) * p * (1 - p)
+
+def item_info_mirt(theta: torch.Tensor, A: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """
+    MIRT 2PL info matrices for all items.
+    theta: [k], A: [n_items, k], b: [n_items]
+    returns: [n_items, k, k] (P(1-P) * a a^T)
+    """
+    z = (A @ theta) - b  # [n_items]
+    p = _sigmoid(z)
+    w = (p * (1 - p))[:, None, None]  # [n,1,1]
+    outer = A[:, :, None] @ A[:, None, :]  # [n,k,k]
+    return w * outer
+
+def sigma_points_1d(mu: float, var: float, alpha: float = 1.0):
+    """3-point symmetric sigma rule for 1D Normal(mu,var)."""
+    sd = (var**0.5)
+    w0 = 1/3; w1 = 1/3; w2 = 1/3
+    return [(mu, w0), (mu + alpha*sd, w1), (mu - alpha*sd, w2)]
+
+def posterior_se_rasch(theta_hat, b_sel, sigma0):
+    # theta_hat: scalar tensor; b_sel: 1D tensor of difficulties of asked items
+    p = torch.sigmoid(theta_hat - b_sel)
+    info_post = p.mul(1 - p).sum() + 1.0 / (sigma0**2)
+    se = 1.0 / torch.sqrt(torch.clamp(info_post, min=1e-9))
+    return se
+
+
+def select_item_oed(
+    mu: torch.Tensor,                  # posterior mean of theta, [k] or scalar
+    Sigma: torch.Tensor,               # posterior covariance, [k,k] or scalar var
+    asked_mask: torch.Tensor,          # [n_items] bool
+    observed_mask: torch.Tensor,       # [n_items] bool (candidate gate)
+    design: Literal["D","A","E","V","KL"] = "D",
+    model: Literal["rasch","2pl","mirt2pl"] = "rasch",
+    b: Optional[torch.Tensor] = None,  # [n_items], difficulty
+    a: Optional[torch.Tensor] = None,  # [n_items] or [n_items,k] for MIRT
+    info_floor: float = 1e-6,
+    alpha_sigma: float = 1.0,
+) -> int:
+    """
+    Bayesian OED selector. Returns item index maximizing the chosen design score.
+    For k=1 (rasch/2pl), Sigma is scalar variance. For MIRT, Sigma is [k,k].
+    """
+    device = mu.device if isinstance(mu, torch.Tensor) else torch.device("cpu")
+    candidates = (~asked_mask) & observed_mask
+    if not candidates.any():
+        return None
+
+    idx = torch.nonzero(candidates, as_tuple=False).flatten()
+    nC = idx.numel()
+
+    # Prepare sigma points
+    if model == "mirt2pl":
+        k = mu.numel()
+        # 1st-order UT sigma set (2k+1) could be used; here a cheap 3-point per axis approx
+        # For speed in high-d, use diagonal Sigma approx:
+        var_diag = torch.diag(Sigma).clamp_min(1e-9)
+        sigmas = [(mu, 1.0)]  # weight will be normalized later
+        for d in range(k):
+            e = torch.zeros_like(mu); e[d] = 1.0
+            sd = (var_diag[d].sqrt())
+            sigmas.append((mu + alpha_sigma*sd*e, 0.5/k))
+            sigmas.append((mu - alpha_sigma*sd*e, 0.5/k))
+        # Normalize weights (rough)
+        wsum = sum(w for _, w in sigmas)
+        sigmas = [(m, w/wsum) for m, w in sigmas]
+    else:
+        # k=1
+        mu_s = float(mu.item() if torch.is_tensor(mu) else mu)
+        var_s = float(Sigma.item() if torch.is_tensor(Sigma) else Sigma)
+        sigmas = sigma_points_1d(mu_s, var_s, alpha=alpha_sigma)
+
+    # Precompute current "prior/posterior" information
+    if model == "mirt2pl":
+        I_post = torch.linalg.inv(Sigma).detach()  # [k,k]
+    else:
+        I_post = 1.0 / max(float(Sigma), 1e-9)     # scalar
+
+    scores = torch.empty(nC, device=device)
+
+    for t, j in enumerate(idx):
+        if model == "rasch":
+            score = 0.0
+            for th, w in sigmas:
+                th_t = torch.tensor(th, device=device)
+                Ij = item_info_rasch(th_t, b)[j]
+                val = torch.log(torch.clamp(I_post + Ij, min=info_floor)) if design=="D" else \
+                      (-(1.0/(I_post + Ij))) if design in ("A","V") else \
+                      torch.log(torch.clamp(I_post + Ij, min=info_floor))  # proxy for KL
+                score = score + w * val
+            scores[t] = score
+
+        elif model == "2pl":
+            score = 0.0
+            for th, w in sigmas:
+                th_t = torch.tensor(th, device=device)
+                Ij = item_info_2pl(th_t, a, b)[j]
+                val = torch.log(torch.clamp(I_post + Ij, min=info_floor)) if design=="D" else \
+                      (-(1.0/(I_post + Ij))) if design in ("A","V") else \
+                      torch.log(torch.clamp(I_post + Ij, min=info_floor))
+                score = score + w * val
+            scores[t] = score
+
+        else:  # MIRT 2PL
+            a_mat = a  # [n,k]
+            score = 0.0
+            for th, w in sigmas:
+                Ij = item_info_mirt(th, a_mat, b)[j]      # [k,k]
+                M = I_post + Ij
+                if design == "D":
+                    val = torch.logdet(M + info_floor*torch.eye(M.shape[0], device=device))
+                elif design == "A":
+                    val = -torch.trace(torch.linalg.inv(M))
+                elif design == "E":
+                    # maximize min eigenvalue
+                    val = torch.linalg.eigvalsh(M).min()
+                else:  # KL proxy via logdet
+                    val = torch.logdet(M + info_floor*torch.eye(M.shape[0], device=device))
+                score = score + w * val
+            scores[t] = score
+
+    # pick best candidate; add randomesque on ties in your outer loop if desired
+    best = int(idx[torch.argmax(scores)].item())
+    return best
+    
 def select_item_mfi(theta, b_all, asked_mask, observed_mask_for_person, k_randomesque=1):
     # Only among items not asked yet AND observed for this person.
     candidates = (~asked_mask) & observed_mask_for_person.bool()
@@ -82,7 +219,7 @@ def select_item_random(asked_mask, observed_mask_for_person):
     return int(idxs[ridx].item())
 
 def run_cat_for_person(
-    person_idx, responses_row, observed_mask_row, b_all, theta_star,
+    person_idx, responses_row, observed_mask_row, b_all, theta_star, zs,
     max_items=30, target_se=0.30, k_randomesque=3, variant="adaptive"
 ):
     asked = torch.zeros_like(observed_mask_row, dtype=torch.bool, device=observed_mask_row.device)
@@ -99,7 +236,17 @@ def run_cat_for_person(
     for step in range(1, max_steps + 1):
         # pick next item
         if variant == "adaptive":
-            j = select_item_mfi(theta, b_all, asked, observed_mask_row.bool(), k_randomesque=k_randomesque)
+            #j = select_item_mfi(theta, b_all, asked, observed_mask_row.bool(), k_randomesque=k_randomesque)
+            sel_idx = torch.nonzero(asked, as_tuple=False).flatten()
+            b_sel = b_all[sel_idx]
+            se_t = posterior_se_rasch(theta, b_sel, 1.0)
+            j = select_item_oed(
+                mu=theta, Sigma=se_t**2,                 # 1D posterior approx (var = SE^2)
+                asked_mask=asked, observed_mask=observed_mask_row.bool(),
+                design="D", model="rasch",
+                b=(-zs).detach(),                        # Rasch difficulty
+                info_floor=1e-6, alpha_sigma=1.0
+            )
         else:
             j = select_item_random(asked, observed_mask_row.bool())
 
@@ -161,10 +308,10 @@ def run_cat_population(data_with0, observed_idtor, thetas_full, zs,
         obs_row  = (observed_idtor[i] == 1)
         if obs_row.sum() < 3:           # skip very sparse people (optional)
             continue
-        df_adapt = run_cat_for_person(i, resp_row, obs_row, b_all, thetas_full[i],
+        df_adapt = run_cat_for_person(i, resp_row, obs_row, b_all, thetas_full[i], zs,
                                       max_items=max_items, target_se=target_se,
                                       k_randomesque=k_randomesque, variant="adaptive")
-        df_rand  = run_cat_for_person(i, resp_row, obs_row, b_all, thetas_full[i],
+        df_rand  = run_cat_for_person(i, resp_row, obs_row, b_all, thetas_full[i], zs,
                                       max_items=max_items, target_se=target_se,
                                       k_randomesque=k_randomesque, variant="random")
         if not df_adapt.empty: rows.append(df_adapt)
