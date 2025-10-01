@@ -37,6 +37,7 @@ huggingface-cli download sentence-transformers/all-MiniLM-L6-v2 --local-dir mode
 
 1. Get calibration data
 ```
+python grid.py
 ```
 
 2. Train IRT model (Rasch model)
